@@ -3,7 +3,10 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   devtools: { enabled: true },
 
-  css: ['~/assets/css/tailwind.css'],
+  css: [
+    '~/assets/css/tailwind.css',
+  ],
+
   vite: {
     plugins: [
       tailwindcss(),
@@ -25,7 +28,14 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/color-mode',
     '@nuxt/fonts',
+    '@nuxtjs/mdc',
   ],
+
+  mdc: {
+    headings: {
+      anchorLinks: false,
+    },
+  },
 
   shadcn: {
     /**
@@ -58,6 +68,7 @@ export default defineNuxtConfig({
   routeRules: {
     '/components': { redirect: '/components/accordion' },
     '/settings': { redirect: '/settings/profile' },
+    '/dify/**': { proxy: 'https://dify.sufu.site/v1/**' },
   },
 
   imports: {

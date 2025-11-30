@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowUpIcon } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown } from 'lucide-vue-next'
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar'
+import { ButtonGroup } from '@/components/ui/button-group'
 import {
   Card,
   CardContent,
@@ -75,6 +76,8 @@ const dify_conversation_id = 'b2026e48-5238-4ddc-abe1-f8b2413567cc'
 
 const loading = ref(false)
 const query = ref('')
+const showInput = ref(true)
+const cardContentRef = useTemplateRef('cardContentRef')
 const curConversation = ref<Conversation>()
 const messages = ref<Message[]>([])
 
@@ -85,10 +88,10 @@ onMounted(() => {
   ])
 })
 
+function scroll(block: 'start' | 'end' = 'end') {
+  cardContentRef.value?.scrollIntoView({ behavior: 'smooth', block })
+}
 async function getConversationInfo() {
-  // curl -X GET 'http://dify.sufu.site/v1/conversations?user=abc-123&last_id=&limit=20' \
-  // --header 'Authorization: Bearer {api_key}'
-
   const { data } = await http.get<Conversation[]>(
     `/dify/conversations?user=${dify_user}`,
     {
@@ -108,7 +111,6 @@ async function getHistory() {
   messages.value = data.filter(row => row.query && row.answer)
   loading.value = false
 }
-
 function onSend() {
 }
 </script>
@@ -123,31 +125,33 @@ function onSend() {
             Enter your email below to login to your account
           </CardDescription> -->
         </CardHeader>
-        <CardContent class="flex-1 px-1 overflow-y-auto">
-          <div v-for="row in messages" :key="row.id" class="flex flex-col gap-4 mb-4 first:mt-6 last:mb-4">
-            <div class="w-fit lg:max-w-100 max-w-88 text-[0.9rem] px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
-              <!-- 这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题 -->
-              {{ row.query }}
-              <span class="mt-1 block text-xs font-light italic text-primary-foreground/85 text-end">
-                <!-- yyyy-MM-dd HH:mm:ss -->
-                {{ format(row.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
-              </span>
-            </div>
-            <div class="w-fit lg:max-w-180 max-w-96 px-3 py-2 wrap-break-word bg-muted self-start rounded-[10px_10px_10px_0]">
-              <!-- 这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案 -->
-              <MDC :value="row.answer" :class="MarkdownClass" />
-              <span class="text-foreground/75 mt-1 block text-xs font-light italic">
-                <!-- yyyy-MM-dd HH:mm:ss -->
-                {{ format(row.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
-              </span>
+        <CardContent class="flex-1 px-1 overflow-y-auto h-full">
+          <div ref="cardContentRef">
+            <div v-for="row in messages" :key="row.id" class="flex flex-col gap-4 mb-4 first:mt-6 last:mb-4">
+              <div class="w-fit lg:max-w-100 max-w-88 text-[0.9rem] px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
+                <!-- 这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题 -->
+                {{ row.query }}
+                <span class="mt-1 block text-xs font-light italic text-primary-foreground/85 text-end">
+                  <!-- yyyy-MM-dd HH:mm:ss -->
+                  {{ format(row.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
+                </span>
+              </div>
+              <div class="w-fit lg:max-w-180 max-w-96 px-3 py-2 wrap-break-word bg-muted self-start rounded-[10px_10px_10px_0]">
+                <!-- 这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案 -->
+                <MDC :value="row.answer" :class="MarkdownClass" />
+                <span class="text-foreground/75 mt-1 block text-xs font-light italic">
+                  <!-- yyyy-MM-dd HH:mm:ss -->
+                  {{ format(row.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
         <CardFooter class="flex flex-col px-0">
           <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
           <InputGroup>
-            <InputGroupTextarea v-model="query" placeholder="Ask, Search or Chat..." />
-            <InputGroupAddon align="block-end" class="justify-between">
+            <InputGroupTextarea v-show="showInput" v-model="query" placeholder="Ask, Search or Chat..." />
+            <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
               <div class="flex gap-2 items-center">
                 <Avatar>
                   <AvatarImage src="https://github.com/shadcn.png" alt="avatar" />
@@ -183,20 +187,47 @@ function onSend() {
                   <DropdownMenuItem>Manual</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu> -->
-              <Separator orientation="vertical" class="!h-4" />
-              <InputGroupButton
-                variant="default"
-                class="rounded-full"
-                size="icon-sm"
-                :disabled="loading || query.length === 0"
-                @click="onSend"
-              >
-                <Spinner v-if="loading" />
-                <template v-else>
-                  <ArrowUpIcon class="size-4" />
-                  <span class="sr-only">Send</span>
-                </template>
-              </InputGroupButton>
+              <!-- <Separator orientation="vertical" class="!h-4" /> -->
+
+              <div class="flex flex-row gap-2">
+                <ButtonGroup>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    @click="scroll('start')"
+                  >
+                    <ArrowUpToLine />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    @click="showInput = !showInput"
+                  >
+                    <ChevronsDownUp v-if="showInput" />
+                    <ChevronsUpDown v-else />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    @click="scroll('end')"
+                  >
+                    <ArrowDownToLine />
+                  </Button>
+                </ButtonGroup>
+                <InputGroupButton
+                  v-if="showInput"
+                  variant="default"
+                  size="icon-sm"
+                  :disabled="loading || query.length === 0"
+                  @click="onSend"
+                >
+                  <Spinner v-if="loading" />
+                  <template v-else>
+                    <ArrowUpIcon class="size-4" />
+                    <span class="sr-only">Send</span>
+                  </template>
+                </InputGroupButton>
+              </div>
             </InputGroupAddon>
           </InputGroup>
         </CardFooter>

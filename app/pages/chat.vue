@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, EyeOff, Eye, Menu } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu } from 'lucide-vue-next'
 import {
   Avatar,
   AvatarFallback,
@@ -23,6 +23,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
 import http from '@/lib/http'
@@ -91,6 +98,8 @@ const placeholders = [
   '你可以向我分享所有困惑和快乐',
   '你有什么要和我说的吗',
 ]
+const nickname = 'Sufu.Wang'
+const avatarUrl = 'https://github.com/shadcn.png'
 
 const loading = ref(false)
 const query = ref('')
@@ -158,7 +167,7 @@ function onSend() {
           </CardDescription>
         </CardHeader>
         <CardContent class="flex-1 px-1 overflow-y-auto h-full">
-          <div ref="cardContentRef">
+          <div v-if="messages.length" ref="cardContentRef">
             <div v-for="row in messages" :key="row.id" class="flex flex-col gap-4 mb-4 first:mt-6 last:mb-4">
               <div class="w-fit lg:max-w-100 max-w-88 text-[0.9rem] px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
                 <!-- 这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题 -->
@@ -178,6 +187,24 @@ function onSend() {
               </div>
             </div>
           </div>
+          <div v-else class="h-full flex items-center">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="default">
+                  <Avatar class="size-12">
+                    <AvatarImage :src="avatarUrl" alt="avatar" />
+                    <AvatarFallback>SU</AvatarFallback>
+                  </Avatar>
+                </EmptyMedia>
+                <EmptyTitle>{{ nickname }}</EmptyTitle>
+                <EmptyDescription>
+                  欢迎使用云栖<br>
+                  这是一个有温度的 AI<br>
+                  您可以倾诉任何事情<br>
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
         </CardContent>
         <CardFooter class="flex flex-col px-0">
           <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
@@ -186,11 +213,11 @@ function onSend() {
             <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
               <div class="flex gap-2 items-center">
                 <Avatar>
-                  <AvatarImage src="https://github.com/shadcn.png" alt="avatar" />
+                  <AvatarImage :src="avatarUrl" alt="avatar" />
                   <AvatarFallback>SU</AvatarFallback>
                 </Avatar>
                 <div>
-                  Sufu.Wang
+                  {{ nickname }}
                 </div>
               </div>
               <!-- <InputGroupText class="ml-auto">

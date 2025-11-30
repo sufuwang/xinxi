@@ -69,6 +69,9 @@ const MarkdownClass = `
   [&>pre]:text-gray-100 [&>pre]:p-4 [&>pre]:rounded-lg [&>pre]:overflow-x-auto
 
   [&>hr]:my-2
+
+  [&>:first-child]:pt-0! [&>:first-child]:mt-0!
+  [&>:last-child]:pb-0! [&>:last-child]:mb-0!
 `
 
 const dify_user = 'Dev.Sufu.Wang'

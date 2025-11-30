@@ -20,9 +20,9 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="flex justify-center h-screen w-screen items-center">
-    <div class="w-[46%] h-full flex box-border py-2 gap-2">
-      <Card class="w-full h-full flex p-2 gap-2">
+  <div class="flex justify-center h-dvh w-screen items-center">
+    <div class="lg:w-[46%] w-screen h-full flex box-border lg:py-2 gap-2">
+      <Card class="w-full h-full flex p-2 gap-2 rounded-none md:rounded-xl!">
         <CardHeader class="p-2">
           <CardTitle>Login to your account</CardTitle>
           <!-- <CardDescription>
@@ -31,13 +31,13 @@ definePageMeta({
         </CardHeader>
         <CardContent class="flex-1 px-1 overflow-y-auto">
           <div v-for="value in 30" :key="value" class="flex flex-col gap-4 mb-4 first:mt-6 last:mb-4">
-            <div class="w-fit max-w-100 px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
+            <div class="w-fit lg:max-w-100 max-w-88 px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
               这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题
               <span class="mt-1 block text-xs font-light italic text-primary-foreground/85 text-end">
                 yyyy-MM-dd HH:mm:ss
               </span>
             </div>
-            <div class="w-fit max-w-180 px-3 py-2 wrap-break-word bg-muted self-start rounded-[10px_10px_10px_0]">
+            <div class="w-fit lg:max-w-180 max-w-96 px-3 py-2 wrap-break-word bg-muted self-start rounded-[10px_10px_10px_0]">
               这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案\这是答案
               <span class="text-foreground/75 mt-1 block text-xs font-light italic">
                 yyyy-MM-dd HH:mm:ss

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, EyeOff, Eye, Menu } from 'lucide-vue-next'
 import {
   Avatar,
   AvatarFallback,
@@ -14,6 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
 import http from '@/lib/http'
@@ -77,13 +86,32 @@ const MarkdownClass = `
 const dify_user = 'Dev.Sufu.Wang'
 const dify_conversation_id = 'b2026e48-5238-4ddc-abe1-f8b2413567cc'
 
+const placeholders = [
+  '我是一个有温度的 AI',
+  '你可以向我分享所有困惑和快乐',
+  '你有什么要和我说的吗',
+]
+
 const loading = ref(false)
 const query = ref('')
+const placeholder = ref(getPlaceholder())
+const showTitle = ref(true)
 const showInput = ref(true)
 const cardContentRef = useTemplateRef('cardContentRef')
+const allConversation = ref<Conversation[]>()
 const curConversation = ref<Conversation>()
 const messages = ref<Message[]>([])
 
+function getPlaceholder() {
+  const index = Math.max(0, Math.floor(Math.random() * placeholders.length))
+  return placeholders[index] ?? placeholders.at(-1)
+}
+
+onBeforeMount(() => {
+  setInterval(() => {
+    placeholder.value = getPlaceholder()
+  }, 5000)
+})
 onMounted(() => {
   Promise.all([
     getConversationInfo(),
@@ -101,6 +129,7 @@ async function getConversationInfo() {
       headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
     },
   )
+  allConversation.value = data
   curConversation.value = data.find(row => row.id === dify_conversation_id)
 }
 async function getHistory() {
@@ -122,11 +151,11 @@ function onSend() {
   <div class="flex justify-center h-dvh w-screen items-center">
     <div class="lg:w-[46%] w-screen h-full flex box-border lg:py-2 gap-2">
       <Card class="w-full h-full flex p-2 gap-2 rounded-none md:rounded-xl!">
-        <CardHeader class="p-2">
+        <CardHeader v-if="showTitle" class="p-2">
           <CardTitle>{{ curConversation?.name ?? '' }}</CardTitle>
-          <!-- <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription> -->
+          <CardDescription v-if="curConversation?.introduction">
+            {{ curConversation?.introduction }}
+          </CardDescription>
         </CardHeader>
         <CardContent class="flex-1 px-1 overflow-y-auto h-full">
           <div ref="cardContentRef">
@@ -153,7 +182,7 @@ function onSend() {
         <CardFooter class="flex flex-col px-0">
           <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
           <InputGroup>
-            <InputGroupTextarea v-show="showInput" v-model="query" placeholder="Ask, Search or Chat..." />
+            <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" />
             <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
               <div class="flex gap-2 items-center">
                 <Avatar>
@@ -193,6 +222,48 @@ function onSend() {
               <!-- <Separator orientation="vertical" class="!h-4" /> -->
 
               <div class="flex flex-row gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                    >
+                      <Menu />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>所有会话</DropdownMenuLabel>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem v-for="row in allConversation" :key="row.id">
+                        <div v-if="row.id === curConversation.id" class="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        {{ row.name }}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem @click="scroll('start')">
+                      <ArrowUpToLine />滑动至顶端
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="showTitle = !showTitle">
+                      <template v-if="showTitle">
+                        <EyeOff />隐藏会话标题
+                      </template>
+                      <template v-else>
+                        <Eye /> /显示会话标题
+                      </template>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="showInput = !showInput">
+                      <template v-if="showInput">
+                        <ChevronsDownUp />隐藏输入框
+                      </template>
+                      <template v-else>
+                        <ChevronsUpDown />显示输入框
+                      </template>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem @click="scroll('end')">
+                      <ArrowDownToLine />滑动至底部
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <ButtonGroup>
                   <Button
                     variant="outline"

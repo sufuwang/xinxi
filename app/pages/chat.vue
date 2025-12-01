@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu, MessageCirclePlus } from 'lucide-vue-next'
 import {
   Avatar,
   AvatarFallback,
@@ -91,7 +91,7 @@ const MarkdownClass = `
 `
 
 const dify_user = 'Dev.Sufu.Wang'
-const dify_conversation_id = 'b2026e48-5238-4ddc-abe1-f8b2413567cc'
+// const conversationId = 'b2026e48-5238-4ddc-abe1-f8b2413567cc'
 
 const placeholders = [
   '我是一个有温度的 AI',
@@ -101,31 +101,47 @@ const placeholders = [
 const nickname = 'Sufu.Wang'
 const avatarUrl = 'https://github.com/shadcn.png'
 
+const isMounting = ref(true)
 const loading = ref(false)
 const query = ref('')
 const placeholder = ref(getPlaceholder())
 const showTitle = ref(true)
 const showInput = ref(true)
 const cardContentRef = useTemplateRef('cardContentRef')
+const conversationId = ref('')
 const allConversation = ref<Conversation[]>()
-const curConversation = ref<Conversation>()
+const curConversation = ref<Conversation | null>()
 const messages = ref<Message[]>([])
+
+const route = useRoute()
 
 function getPlaceholder() {
   const index = Math.max(0, Math.floor(Math.random() * placeholders.length))
   return placeholders[index] ?? placeholders.at(-1)
 }
 
+watch(
+  () => route.query,
+  () => {
+    conversationId.value = route.query.conversationId as string
+    Promise.all([
+      getConversationInfo(),
+      getHistory(),
+    ])
+  },
+  {
+    immediate: true,
+  },
+)
+
 onBeforeMount(() => {
+  conversationId.value = route.query.conversationId as string
   setInterval(() => {
     placeholder.value = getPlaceholder()
   }, 5000)
 })
 onMounted(() => {
-  Promise.all([
-    getConversationInfo(),
-    getHistory(),
-  ])
+  isMounting.value = false
 })
 
 function scroll(block: 'start' | 'end' = 'end') {
@@ -139,12 +155,20 @@ async function getConversationInfo() {
     },
   )
   allConversation.value = data
-  curConversation.value = data.find(row => row.id === dify_conversation_id)
+  if (!conversationId.value) {
+    curConversation.value = null
+    return
+  }
+  curConversation.value = data.find(row => row.id === conversationId.value)
 }
 async function getHistory() {
+  if (!conversationId.value) {
+    messages.value = []
+    return
+  }
   loading.value = true
   const { data } = await http.get<Message[]>(
-    `/dify/messages?user=${dify_user}&conversation_id=${dify_conversation_id}`,
+    `/dify/messages?user=${dify_user}&conversation_id=${conversationId.value}`,
     {
       headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
     },
@@ -157,7 +181,7 @@ function onSend() {
 </script>
 
 <template>
-  <div class="flex justify-center h-dvh w-screen items-center">
+  <div v-if="!isMounting" class="flex justify-center h-dvh w-screen items-center">
     <div class="lg:w-[46%] w-screen h-full flex box-border lg:py-2 gap-2">
       <Card class="w-full h-full flex p-2 gap-2 rounded-none md:rounded-xl!">
         <CardHeader v-if="showTitle" class="p-2">
@@ -262,11 +286,18 @@ function onSend() {
                     <DropdownMenuLabel>所有会话</DropdownMenuLabel>
                     <DropdownMenuGroup>
                       <DropdownMenuItem v-for="row in allConversation" :key="row.id">
-                        <div v-if="row.id === curConversation.id" class="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                        {{ row.name }}
+                        <NuxtLink :to="{ path: '/chat', query: { conversationId: row.id } }" class="flex flex-row items-center gap-2">
+                          <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
+                          {{ row.name }}
+                        </NuxtLink>
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <NuxtLink :to="{ path: '/chat' }" class="flex flex-row items-center gap-2">
+                        <MessageCirclePlus />新建会话
+                      </NuxtLink>
+                    </DropdownMenuItem>
                     <DropdownMenuItem @click="scroll('start')">
                       <ArrowUpToLine />滑动至顶端
                     </DropdownMenuItem>

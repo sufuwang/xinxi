@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
 import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu, MessageCirclePlus } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import {
   Avatar,
   AvatarFallback,
@@ -107,7 +108,7 @@ const query = ref('')
 const placeholder = ref(getPlaceholder())
 const showTitle = ref(true)
 const showInput = ref(true)
-const cardContentRef = useTemplateRef('cardContentRef')
+const messagesRef = useTemplateRef('messagesRef')
 const conversationId = ref('')
 const allConversation = ref<Conversation[]>()
 const curConversation = ref<Conversation | null>()
@@ -122,30 +123,34 @@ function getPlaceholder() {
 
 watch(
   () => route.query,
-  () => {
+  async () => {
     conversationId.value = route.query.conversationId as string
-    Promise.all([
-      getConversationInfo(),
-      getHistory(),
-    ])
-  },
-  {
-    immediate: true,
+    await Promise.all([getConversationInfo(), getHistory()])
+    setTimeout(() => {
+      scroll('end')
+    }, 500)
   },
 )
 
 onBeforeMount(() => {
-  conversationId.value = route.query.conversationId as string
   setInterval(() => {
     placeholder.value = getPlaceholder()
   }, 5000)
 })
-onMounted(() => {
+onMounted(async () => {
+  conversationId.value = route.query.conversationId as string
+  await Promise.all([getConversationInfo(), getHistory()])
   isMounting.value = false
+  setTimeout(() => {
+    scroll('end')
+  }, 500)
 })
 
+function warning(text: string) {
+  toast.warning(text, { position: 'top-center', richColors: true })
+}
 function scroll(block: 'start' | 'end' = 'end') {
-  cardContentRef.value?.scrollIntoView({ behavior: 'smooth', block })
+  messagesRef.value?.scrollIntoView({ behavior: 'smooth', block })
 }
 async function getConversationInfo() {
   const { data } = await http.get<Conversation[]>(
@@ -160,6 +165,12 @@ async function getConversationInfo() {
     return
   }
   curConversation.value = data.find(row => row.id === conversationId.value)
+  if (!curConversation.value) {
+    warning('当前会话不存在，将跳转至新会话')
+    setTimeout(() => {
+      window.location.href = '/chat'
+    }, 1500)
+  }
 }
 async function getHistory() {
   if (!conversationId.value) {
@@ -176,7 +187,54 @@ async function getHistory() {
   messages.value = data.filter(row => row.query && row.answer)
   loading.value = false
 }
-function onSend() {
+async function onSend() {
+  if (query.value.length === 0) {
+    warning('请输入问题')
+    return
+  }
+  loading.value = true
+  const response = await fetch('/dify/chat-messages', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      inputs: {},
+      query: query.value,
+      response_mode: 'streaming',
+      user: dify_user,
+      conversation_id: conversationId.value,
+    }),
+  })
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) {
+      loading.value = false
+      break
+    };
+    const rows: Message[] = decoder.decode(value)
+      .split('\n')
+      .filter(r => r && r.startsWith('data: ') && r.includes(`"event":"message"`))
+      .map(r => JSON.parse(r.replace('data: ', '')))
+    if (rows.length === 0) {
+      continue
+    }
+    const history = messages.value
+    if (history.at(-1)?.id === rows[0]?.id) {
+      messages.value = [
+        ...history.slice(0, -1),
+        { ...history.at(-1), ...rows[0]!, answer: history.at(-1)?.answer + rows.map(r => r.answer).join('') },
+      ]
+      scroll('end')
+    }
+    else {
+      messages.value = [...history, { ...rows[0]!, answer: rows.map(r => r.answer).join(''), query: query.value }]
+      query.value = ''
+    }
+  }
 }
 </script>
 
@@ -191,7 +249,7 @@ function onSend() {
           </CardDescription>
         </CardHeader>
         <CardContent class="flex-1 px-1 overflow-y-auto h-full">
-          <div v-if="messages.length" ref="cardContentRef">
+          <div v-if="messages.length" ref="messagesRef">
             <div v-for="row in messages" :key="row.id" class="flex flex-col gap-4 mb-4 first:mt-6 last:mb-4">
               <div class="w-fit lg:max-w-100 max-w-88 text-[0.9rem] px-3 py-2 wrap-break-word bg-primary/86 text-primary-foreground/95 self-end rounded-[10px_10px_0_10px]">
                 <!-- 这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题\这是问题 -->
@@ -298,15 +356,12 @@ function onSend() {
                         <MessageCirclePlus />新建会话
                       </NuxtLink>
                     </DropdownMenuItem>
-                    <DropdownMenuItem @click="scroll('start')">
-                      <ArrowUpToLine />滑动至顶端
-                    </DropdownMenuItem>
                     <DropdownMenuItem @click="showTitle = !showTitle">
                       <template v-if="showTitle">
                         <EyeOff />隐藏会话标题
                       </template>
                       <template v-else>
-                        <Eye /> /显示会话标题
+                        <Eye />显示会话标题
                       </template>
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="showInput = !showInput">
@@ -317,8 +372,12 @@ function onSend() {
                         <ChevronsUpDown />显示输入框
                       </template>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem @click="scroll('start')">
+                      <ArrowUpToLine />滚动至顶端
+                    </DropdownMenuItem>
                     <DropdownMenuItem @click="scroll('end')">
-                      <ArrowDownToLine />滑动至底部
+                      <ArrowDownToLine />滚动至底部
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

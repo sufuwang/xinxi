@@ -114,6 +114,7 @@ const allConversation = ref<Conversation[]>()
 const curConversation = ref<Conversation | null>()
 const messages = ref<Message[]>([])
 
+const router = useRouter()
 const route = useRoute()
 
 function getPlaceholder() {
@@ -214,7 +215,7 @@ async function onSend() {
     if (done) {
       loading.value = false
       break
-    };
+    }
     const rows: Message[] = decoder.decode(value)
       .split('\n')
       .filter(r => r && r.startsWith('data: ') && r.includes(`"event":"message"`))
@@ -233,6 +234,20 @@ async function onSend() {
     else {
       messages.value = [...history, { ...rows[0]!, answer: rows.map(r => r.answer).join(''), query: query.value }]
       query.value = ''
+      if (!conversationId.value) {
+        conversationId.value = rows[0]?.conversation_id ?? ''
+        getConversationInfo()
+        // 修改 URL
+        const currentUrl = new URL(window.location.href)
+        const searchParams = [...currentUrl.searchParams.entries()]
+        const newSearchParams = new URLSearchParams()
+        searchParams.forEach(([key, value]) => {
+          newSearchParams.set(key, value)
+        })
+        newSearchParams.set('conversationId', conversationId.value)
+        const newUrl = `${currentUrl.pathname}?${newSearchParams.toString()}${currentUrl.hash}`
+        window.history.replaceState(null, '', newUrl)
+      }
     }
   }
 }
@@ -343,18 +358,19 @@ async function onSend() {
                   <DropdownMenuContent align="start">
                     <DropdownMenuLabel>所有会话</DropdownMenuLabel>
                     <DropdownMenuGroup>
-                      <DropdownMenuItem v-for="row in allConversation" :key="row.id">
-                        <NuxtLink :to="{ path: '/chat', query: { conversationId: row.id } }" class="flex flex-row items-center gap-2">
-                          <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
-                          {{ row.name }}
-                        </NuxtLink>
+                      <DropdownMenuItem
+                        v-for="row in allConversation"
+                        :key="row.id"
+                        class="flex flex-row items-center gap-2"
+                        @click="router.push({ path: '/chat', query: { conversationId: row.id } })"
+                      >
+                        <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
+                        {{ row.name }}
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <NuxtLink :to="{ path: '/chat' }" class="flex flex-row items-center gap-2">
-                        <MessageCirclePlus />新建会话
-                      </NuxtLink>
+                    <DropdownMenuItem class="flex flex-row items-center gap-2" @click="router.push({ path: '/chat' })">
+                      <MessageCirclePlus />新建会话
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="showTitle = !showTitle">
                       <template v-if="showTitle">

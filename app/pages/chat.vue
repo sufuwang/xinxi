@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu, MessageCirclePlus } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu, MessageCirclePlus, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import {
   Avatar,
@@ -188,6 +188,18 @@ async function getHistory() {
   messages.value = data.filter(row => row.query && row.answer)
   loading.value = false
 }
+async function deleteConversation() {
+  await http.delete(
+    `/dify/conversations/${conversationId.value}`,
+    {
+      headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
+      data: {
+        user: dify_user,
+      },
+    },
+  )
+  router.replace({ path: '/chat' })
+}
 async function onSend() {
   if (query.value.length === 0) {
     warning('请输入问题')
@@ -361,7 +373,6 @@ async function onSend() {
                       <DropdownMenuItem
                         v-for="row in allConversation"
                         :key="row.id"
-                        class="flex flex-row items-center gap-2"
                         @click="router.push({ path: '/chat', query: { conversationId: row.id } })"
                       >
                         <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
@@ -369,8 +380,11 @@ async function onSend() {
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem class="flex flex-row items-center gap-2" @click="router.push({ path: '/chat' })">
+                    <DropdownMenuItem @click="router.push({ path: '/chat' })">
                       <MessageCirclePlus />新建会话
+                    </DropdownMenuItem>
+                    <DropdownMenuItem v-if="conversationId" @click="deleteConversation">
+                      <Trash2 />删除会话
                     </DropdownMenuItem>
                     <DropdownMenuItem @click="showTitle = !showTitle">
                       <template v-if="showTitle">

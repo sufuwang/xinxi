@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Menu, MessageCirclePlus, Trash2 } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Mails, Menu, MessageCirclePlus, MessagesSquare, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import {
   Avatar,
@@ -91,17 +91,17 @@ const MarkdownClass = `
   [&>:last-child]:pb-0! [&>:last-child]:mb-0!
 `
 
-const dify_user = 'Dev.Sufu.Wang'
-// const conversationId = 'b2026e48-5238-4ddc-abe1-f8b2413567cc'
-
 const placeholders = [
   '我是一个有温度的 AI',
   '你可以向我分享所有困惑和快乐',
   '你有什么要和我说的吗',
 ]
-const nickname = 'Sufu.Wang'
-const avatarUrl = 'https://github.com/shadcn.png'
 
+// const avatarUrl = ref('https://github.com/shadcn.png')
+const avatarUrl = ref()
+// const dify_user = ref('Dev.Sufu.Wang')
+const dify_user = ref('')
+const openLoginDialog = ref(false)
 const isMounting = ref(true)
 const loading = ref(false)
 const query = ref('')
@@ -116,6 +116,7 @@ const messages = ref<Message[]>([])
 
 const router = useRouter()
 const route = useRoute()
+const { public: { DIFY_API_KEY } } = useRuntimeConfig()
 
 function getPlaceholder() {
   const index = Math.max(0, Math.floor(Math.random() * placeholders.length))
@@ -125,6 +126,7 @@ function getPlaceholder() {
 watch(
   () => route.query,
   async () => {
+    getUserInfo()
     conversationId.value = route.query.conversationId as string
     await Promise.all([getConversationInfo(), getHistory()])
     setTimeout(() => {
@@ -132,8 +134,24 @@ watch(
     }, 500)
   },
 )
+watch(openLoginDialog, async () => {
+  if (!openLoginDialog.value) {
+    getUserInfo()
+    await Promise.all([getConversationInfo(), getHistory()])
+    setTimeout(() => {
+      scroll('end')
+    }, 500)
+  }
+  else {
+    router.replace({
+      path: route.path,
+      query: { ...route.query, conversationId: undefined },
+    })
+  }
+})
 
 onBeforeMount(() => {
+  getUserInfo()
   setInterval(() => {
     placeholder.value = getPlaceholder()
   }, 5000)
@@ -147,6 +165,10 @@ onMounted(async () => {
   }, 500)
 })
 
+function getUserInfo() {
+  const user = JSON.parse(localStorage.getItem('user') ?? '{}')
+  dify_user.value = user.username
+}
 function warning(text: string) {
   toast.warning(text, { position: 'top-center', richColors: true })
 }
@@ -154,10 +176,13 @@ function scroll(block: 'start' | 'end' = 'end') {
   messagesRef.value?.scrollIntoView({ behavior: 'smooth', block })
 }
 async function getConversationInfo() {
+  if (!dify_user.value) {
+    return
+  }
   const { data } = await http.get<Conversation[]>(
-    `/dify/conversations?user=${dify_user}`,
+    `/dify/conversations?user=${dify_user.value}`,
     {
-      headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
+      headers: { Authorization: `Bearer ${DIFY_API_KEY}` },
     },
   )
   allConversation.value = data
@@ -174,15 +199,15 @@ async function getConversationInfo() {
   }
 }
 async function getHistory() {
-  if (!conversationId.value) {
+  if (!dify_user.value || !conversationId.value) {
     messages.value = []
     return
   }
   loading.value = true
   const { data } = await http.get<Message[]>(
-    `/dify/messages?user=${dify_user}&conversation_id=${conversationId.value}`,
+    `/dify/messages?user=${dify_user.value}&conversation_id=${conversationId.value}`,
     {
-      headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
+      headers: { Authorization: `Bearer ${DIFY_API_KEY}` },
     },
   )
   messages.value = data.filter(row => row.query && row.answer)
@@ -192,15 +217,19 @@ async function deleteConversation() {
   await http.delete(
     `/dify/conversations/${conversationId.value}`,
     {
-      headers: { Authorization: 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw' },
+      headers: { Authorization: `Bearer ${DIFY_API_KEY}` },
       data: {
-        user: dify_user,
+        user: dify_user.value,
       },
     },
   )
   router.replace({ path: '/chat' })
 }
 async function onSend() {
+  if (!dify_user.value) {
+    openLoginDialog.value = true
+    return
+  }
   if (query.value.length === 0) {
     warning('请输入问题')
     return
@@ -209,14 +238,14 @@ async function onSend() {
   const response = await fetch('/dify/chat-messages', {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer app-3WQzNKyBOSjF8dFlIzP8oHRw',
+      'Authorization': `Bearer ${DIFY_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       inputs: {},
       query: query.value,
       response_mode: 'streaming',
-      user: dify_user,
+      user: dify_user.value,
       conversation_id: conversationId.value,
     }),
   })
@@ -249,16 +278,10 @@ async function onSend() {
       if (!conversationId.value) {
         conversationId.value = rows[0]?.conversation_id ?? ''
         getConversationInfo()
-        // 修改 URL
-        const currentUrl = new URL(window.location.href)
-        const searchParams = [...currentUrl.searchParams.entries()]
-        const newSearchParams = new URLSearchParams()
-        searchParams.forEach(([key, value]) => {
-          newSearchParams.set(key, value)
+        router.replace({
+          path: route.path,
+          query: { ...route.query, conversationId: conversationId.value },
         })
-        newSearchParams.set('conversationId', conversationId.value)
-        const newUrl = `${currentUrl.pathname}?${newSearchParams.toString()}${currentUrl.hash}`
-        window.history.replaceState(null, '', newUrl)
       }
     }
   }
@@ -267,6 +290,7 @@ async function onSend() {
 
 <template>
   <div v-if="!isMounting" class="flex justify-center h-dvh w-screen items-center">
+    <AuthLogin v-model:open="openLoginDialog" />
     <div class="lg:w-[46%] w-screen h-full flex box-border lg:py-2 gap-2">
       <Card class="w-full h-full flex p-2 gap-2 rounded-none md:rounded-xl!">
         <CardHeader v-if="showTitle" class="p-2">
@@ -300,12 +324,17 @@ async function onSend() {
             <Empty>
               <EmptyHeader>
                 <EmptyMedia variant="default">
-                  <Avatar class="size-12">
+                  <Avatar v-if="avatarUrl" class="size-12">
                     <AvatarImage :src="avatarUrl" alt="avatar" />
                     <AvatarFallback>SU</AvatarFallback>
                   </Avatar>
                 </EmptyMedia>
-                <EmptyTitle>{{ nickname }}</EmptyTitle>
+                <EmptyTitle>
+                  你好
+                  <template v-if="dify_user">
+                    ，<b>{{ dify_user }}</b>
+                  </template>
+                </EmptyTitle>
                 <EmptyDescription>
                   欢迎使用云栖<br>
                   这是一个有温度的 AI<br>
@@ -321,12 +350,12 @@ async function onSend() {
             <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" />
             <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
               <div class="flex gap-2 items-center">
-                <Avatar>
+                <Avatar v-if="avatarUrl">
                   <AvatarImage :src="avatarUrl" alt="avatar" />
                   <AvatarFallback>SU</AvatarFallback>
                 </Avatar>
                 <div>
-                  {{ nickname }}
+                  {{ dify_user }}
                 </div>
               </div>
               <!-- <InputGroupText class="ml-auto">
@@ -356,15 +385,14 @@ async function onSend() {
                 </DropdownMenuContent>
               </DropdownMenu> -->
               <!-- <Separator orientation="vertical" class="!h-4" /> -->
-
               <div class="flex flex-row gap-2">
-                <DropdownMenu>
+                <DropdownMenu v-if="dify_user">
                   <DropdownMenuTrigger as-child>
                     <Button
                       variant="outline"
                       size="icon-sm"
                     >
-                      <Menu />
+                      <Mails />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -386,60 +414,75 @@ async function onSend() {
                     <DropdownMenuItem v-if="conversationId" @click="deleteConversation">
                       <Trash2 />删除会话
                     </DropdownMenuItem>
-                    <DropdownMenuItem @click="showTitle = !showTitle">
-                      <template v-if="showTitle">
-                        <EyeOff />隐藏会话标题
-                      </template>
-                      <template v-else>
-                        <Eye />显示会话标题
-                      </template>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="showInput = !showInput">
-                      <template v-if="showInput">
-                        <ChevronsDownUp />隐藏输入框
-                      </template>
-                      <template v-else>
-                        <ChevronsUpDown />显示输入框
-                      </template>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem @click="scroll('start')">
-                      <ArrowUpToLine />滚动至顶端
-                    </DropdownMenuItem>
-                    <DropdownMenuItem @click="scroll('end')">
-                      <ArrowDownToLine />滚动至底部
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <ButtonGroup>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    @click="scroll('start')"
-                  >
-                    <ArrowUpToLine />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    @click="showInput = !showInput"
-                  >
-                    <ChevronsDownUp v-if="showInput" />
-                    <ChevronsUpDown v-else />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    @click="scroll('end')"
-                  >
-                    <ArrowDownToLine />
-                  </Button>
-                </ButtonGroup>
+
+                <template v-if="messages.length">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                      >
+                        <Menu />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem @click="showTitle = !showTitle">
+                        <template v-if="showTitle">
+                          <EyeOff />隐藏会话标题
+                        </template>
+                        <template v-else>
+                          <Eye />显示会话标题
+                        </template>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @click="showInput = !showInput">
+                        <template v-if="showInput">
+                          <ChevronsDownUp />隐藏输入框
+                        </template>
+                        <template v-else>
+                          <ChevronsUpDown />显示输入框
+                        </template>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem @click="scroll('start')">
+                        <ArrowUpToLine />滚动至顶端
+                      </DropdownMenuItem>
+                      <DropdownMenuItem @click="scroll('end')">
+                        <ArrowDownToLine />滚动至底部
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <ButtonGroup>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      @click="scroll('start')"
+                    >
+                      <ArrowUpToLine />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      @click="showInput = !showInput"
+                    >
+                      <ChevronsDownUp v-if="showInput" />
+                      <ChevronsUpDown v-else />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      @click="scroll('end')"
+                    >
+                      <ArrowDownToLine />
+                    </Button>
+                  </ButtonGroup>
+                </template>
                 <InputGroupButton
                   v-if="showInput"
                   variant="default"
                   size="icon-sm"
-                  :disabled="loading || query.length === 0"
+                  :disabled="loading"
                   @click="onSend"
                 >
                   <Spinner v-if="loading" />

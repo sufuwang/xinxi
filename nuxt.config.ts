@@ -1,7 +1,15 @@
+/* eslint-disable node/prefer-global/process */
 import tailwindcss from '@tailwindcss/vite'
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   devtools: { enabled: true },
+
+  runtimeConfig: {
+    public: {
+      DIFY_API_KEY: process.env.DIFY_API_KEY,
+    },
+  },
 
   css: [
     '~/assets/css/tailwind.css',
@@ -69,6 +77,10 @@ export default defineNuxtConfig({
     '/components': { redirect: '/components/accordion' },
     '/settings': { redirect: '/settings/profile' },
     '/dify/**': { proxy: 'https://dify.sufu.site/v1/**' },
+    '/x/**': {
+      // proxy: 'http://localhost:5173/**',
+      proxy: 'https://x.sufu.site/**',
+    },
   },
 
   imports: {

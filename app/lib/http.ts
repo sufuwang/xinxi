@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { toast } from 'vue-sonner'
 
 // 创建实例
 const service = axios.create({
@@ -44,6 +45,10 @@ service.interceptors.response.use(
     //   return Promise.reject(res)
     // }
 
+    if (res.data?.status !== 'Success' && res.data?.message) {
+      toast.error(res.data?.message, { position: 'top-center', richColors: true })
+    }
+
     return res
   },
   (error) => {
@@ -53,7 +58,11 @@ service.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    const { status } = error.response
+    const { status, data } = error.response
+
+    if (data?.message) {
+      toast.error(Array.isArray(data.message) ? data.message[0] : data.message, { position: 'top-center', richColors: true })
+    }
 
     // if (status === 401) {
     //   localStorage.removeItem('token')

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, InfoIcon, LoaderCircle, Mails, Menu, Send, Trash2, X } from 'lucide-vue-next'
+import { Check, LoaderCircle, Mails, Menu, Send, X } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,15 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import http from '@/lib/http'
 import { getMailUrl } from '@/lib/utils'
 
@@ -40,7 +38,7 @@ const form = reactive({
   confirmPassword: '',
 })
 
-const loadingSubmit = computed(() => loading.checkEmail || loading.login || loading.register)
+const disabled = computed(() => loading.checkEmail || loading.login || loading.register)
 
 onMounted(() => {
   // step.value = 'Register'
@@ -59,6 +57,9 @@ watch(() => form.email, () => {
 watch(() => form.nickname, () => {
   if (status.value === 'NicknameTooShort' && form.nickname.length >= 8) {
     status.value = undefined
+  }
+  if (form.nickname.length < 8) {
+    status.value = 'NicknameTooShort'
   }
 })
 watch([
@@ -84,6 +85,23 @@ watch(() => form.verifyCode, () => {
   }
 })
 
+function close() {
+  Object.entries({
+    email: '',
+    verifyCode: '',
+    nickname: '',
+    password: '',
+    confirmPassword: '',
+  }).forEach(([key, value]) => form[key as keyof typeof form] = value)
+  Object.entries({
+    checkEmail: false,
+    login: false,
+    register: false,
+  }).forEach(([key, value]) => loading[key as keyof typeof loading] = value)
+  status.value = undefined
+  step.value = 'CheckEmail'
+  open.value = false
+}
 async function sendVerifyCode() {
   if (calmDownTime.value > 0) {
     toast.success(`${calmDownTime.value} 秒后，可以重新发送验证码`, { position: 'top-center', richColors: true })
@@ -146,8 +164,8 @@ async function register() {
         status.value = data.status
         return Promise.reject(data)
       }
-      localStorage.setItem('user', JSON.stringify(data))
-      open.value = false
+      localStorage.setItem('user', JSON.stringify({ username: data.username.slice(0, -9), dify_user: data.username }))
+      close()
     }
     finally {
       loading.register = false
@@ -157,7 +175,7 @@ async function register() {
 async function login() {
   const { data } = await http.post('/x/user/login', { email: form.email, password: form.password })
   status.value = data.status
-  localStorage.setItem('user', JSON.stringify({ username: data.username }))
+  localStorage.setItem('user', JSON.stringify({ username: data.username.slice(0, -9), dify_user: data.username }))
 }
 async function onReset() {
   step.value = 'CheckEmail'
@@ -172,13 +190,21 @@ async function onConfirm() {
   }
   else if (step.value === 'Login') {
     await login()
-    open.value = false
+    close()
+  }
+}
+function updateOpen(v: boolean) {
+  if (v) {
+    open.value = v
+  }
+  else {
+    close()
   }
 }
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="(v) => open = v">
+  <Dialog :open="open" @update:open="updateOpen">
     <form>
       <DialogContent class="sm:max-w-[425px]">
         <DialogHeader>
@@ -217,7 +243,7 @@ async function onConfirm() {
 
             <Label for="email">邮箱</Label>
             <InputGroup>
-              <InputGroupInput id="email" v-model="form.email" :disabled="step !== 'CheckEmail'" type="email" placeholder="请输入邮箱" />
+              <InputGroupInput id="email" v-model="form.email" :disabled="step !== 'CheckEmail'" type="email" placeholder="请输入邮箱" @keydown.enter.prevent="onConfirm" />
               <InputGroupAddon align="inline-end">
                 <LoaderCircle v-if="loading.checkEmail" class="w-4 text-green-400 animate-spin" />
                 <X v-else-if="status === 'EmailFormatError'" class="w-4 text-red-500" />
@@ -274,7 +300,7 @@ async function onConfirm() {
             <div class="grid gap-2">
               <Label for="nickname">昵称</Label>
               <InputGroup :class="{ 'border-red-500': status?.startsWith('Nickname') }">
-                <InputGroupInput id="nickname" v-model="form.nickname" placeholder="请输入昵称" />
+                <InputGroupInput id="nickname" v-model="form.nickname" placeholder="请输入昵称" @keydown.enter.prevent="onConfirm" />
                 <InputGroupAddon align="inline-end">
                   <Check v-if="!status && form.nickname.length >= 8" class="w-4 text-green-500" />
                 </InputGroupAddon>
@@ -286,7 +312,7 @@ async function onConfirm() {
             <div class="grid gap-2">
               <Label for="password">密码</Label>
               <InputGroup :class="{ 'border-red-500': status?.startsWith('Password') }">
-                <InputGroupInput id="password" v-model="form.password" type="password" placeholder="请输入密码" />
+                <InputGroupInput id="password" v-model="form.password" type="password" placeholder="请输入密码" @keydown.enter.prevent="onConfirm" />
                 <InputGroupAddon align="inline-end">
                   <Check v-if="form.confirmPassword && !status" class="w-4 text-green-500" />
                 </InputGroupAddon>
@@ -301,7 +327,7 @@ async function onConfirm() {
             <div class="grid gap-2">
               <Label for="password-2">验证密码</Label>
               <InputGroup :class="{ 'border-red-500': status?.startsWith('Password') }">
-                <InputGroupInput id="password-2" v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" />
+                <InputGroupInput id="password-2" v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" @keydown.enter.prevent="onConfirm" />
                 <InputGroupAddon align="inline-end">
                   <X v-if="status === 'PasswordInconsistent'" class="w-4 text-red-500" />
                   <Check v-else-if="form.confirmPassword && !status" class="w-4 text-green-500" />
@@ -316,7 +342,7 @@ async function onConfirm() {
             <div class="grid gap-2">
               <Label for="password">密码</Label>
               <InputGroup :class="{ 'border-red-500': status === 'PasswordError' }">
-                <InputGroupInput id="password" v-model="form.password" type="password" placeholder="请输入密码" />
+                <InputGroupInput id="password" v-model="form.password" type="password" placeholder="请输入密码" @keydown.enter.prevent="onConfirm" />
                 <InputGroupAddon align="inline-end">
                   <Check v-if="status === 'Success'" class="w-4 text-green-500" />
                   <template v-else-if="status === 'PasswordError'">
@@ -336,14 +362,11 @@ async function onConfirm() {
               取消
             </Button>
           </DialogClose>
-          <Button v-if="step !== 'CheckEmail'" variant="outline" :disabled="loadingSubmit" @click="onReset">
+          <Button v-if="step !== 'CheckEmail'" variant="outline" :disabled="disabled" @click="onReset">
             上一步
           </Button>
-          <Button type="submit" :disabled="loadingSubmit" :size="loadingSubmit ? 'icon' : 'default'" @click.prevent="onConfirm">
-            <LoaderCircle v-if="loadingSubmit" class="animate-spin" />
-            <template v-else>
-              确认
-            </template>
+          <Button type="submit" :disabled="disabled" size="default" @click.prevent="onConfirm">
+            确认
           </Button>
         </DialogFooter>
       </DialogContent>

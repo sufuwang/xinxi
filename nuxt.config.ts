@@ -3,6 +3,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  devServer: {
+    port: 5173,
+  },
+
   devtools: { enabled: true },
 
   runtimeConfig: {
@@ -78,7 +82,7 @@ export default defineNuxtConfig({
     '/settings': { redirect: '/settings/profile' },
     '/dify/**': { proxy: 'https://dify.sufu.site/v1/**' },
     '/x/**': {
-      // proxy: 'http://localhost:5173/**',
+      // proxy: 'http://localhost:3000/**',
       proxy: 'https://x.sufu.site/**',
     },
   },

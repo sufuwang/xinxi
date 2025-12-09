@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, Mails, Menu, MessageCirclePlus, MessagesSquare, Trash2 } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpIcon, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, LogOut, Mails, Menu, MessageCirclePlus, MessagesSquare, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import {
   Avatar,
@@ -100,6 +100,7 @@ const placeholders = [
 // const avatarUrl = ref('https://github.com/shadcn.png')
 const avatarUrl = ref()
 // const dify_user = ref('Dev.Sufu.Wang')
+const username = ref('')
 const dify_user = ref('')
 const openLoginDialog = ref(false)
 const isMounting = ref(true)
@@ -165,9 +166,23 @@ onMounted(async () => {
   }, 500)
 })
 
+function logout() {
+  localStorage.removeItem('user')
+  router.replace({
+    path: route.path,
+    query: { ...route.query, conversationId: undefined },
+  })
+  dify_user.value = ''
+  username.value = ''
+  conversationId.value = ''
+  curConversation.value = null
+  allConversation.value = []
+  messages.value = []
+}
 function getUserInfo() {
   const user = JSON.parse(localStorage.getItem('user') ?? '{}')
-  dify_user.value = user.username
+  dify_user.value = user.dify_user
+  username.value = user.username
 }
 function warning(text: string) {
   toast.warning(text, { position: 'top-center', richColors: true })
@@ -257,10 +272,15 @@ async function onSend() {
       loading.value = false
       break
     }
-    const rows: Message[] = decoder.decode(value)
-      .split('\n')
-      .filter(r => r && r.startsWith('data: ') && r.includes(`"event":"message"`))
+    const _rows = decoder.decode(value).split('\n')
+    const rows: Message[] = _rows.filter(r => r && r.startsWith('data: ') && r.includes(`"event":"message"`))
       .map(r => JSON.parse(r.replace('data: ', '')))
+    if (_rows[0]?.includes(`"event":"message_end"`)) {
+      router.replace({
+        path: route.path,
+        query: { ...route.query, conversationId: conversationId.value },
+      })
+    }
     if (rows.length === 0) {
       continue
     }
@@ -278,10 +298,6 @@ async function onSend() {
       if (!conversationId.value) {
         conversationId.value = rows[0]?.conversation_id ?? ''
         getConversationInfo()
-        router.replace({
-          path: route.path,
-          query: { ...route.query, conversationId: conversationId.value },
-        })
       }
     }
   }
@@ -331,8 +347,8 @@ async function onSend() {
                 </EmptyMedia>
                 <EmptyTitle>
                   你好
-                  <template v-if="dify_user">
-                    ，<b>{{ dify_user }}</b>
+                  <template v-if="username">
+                    ，<b>{{ username }}</b>
                   </template>
                 </EmptyTitle>
                 <EmptyDescription>
@@ -347,7 +363,7 @@ async function onSend() {
         <CardFooter class="flex flex-col px-0">
           <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
           <InputGroup>
-            <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" />
+            <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" @keydown.enter.prevent="onSend" />
             <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
               <div class="flex gap-2 items-center">
                 <Avatar v-if="avatarUrl">
@@ -355,7 +371,7 @@ async function onSend() {
                   <AvatarFallback>SU</AvatarFallback>
                 </Avatar>
                 <div>
-                  {{ dify_user }}
+                  {{ username }}
                 </div>
               </div>
               <!-- <InputGroupText class="ml-auto">
@@ -386,7 +402,7 @@ async function onSend() {
               </DropdownMenu> -->
               <!-- <Separator orientation="vertical" class="!h-4" /> -->
               <div class="flex flex-row gap-2">
-                <DropdownMenu v-if="dify_user">
+                <DropdownMenu v-if="allConversation?.length">
                   <DropdownMenuTrigger as-child>
                     <Button
                       variant="outline"
@@ -416,18 +432,17 @@ async function onSend() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                <template v-if="messages.length">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                      >
-                        <Menu />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
+                <DropdownMenu v-if="dify_user">
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                    >
+                      <Menu />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <template v-if="messages.length">
                       <DropdownMenuItem @click="showTitle = !showTitle">
                         <template v-if="showTitle">
                           <EyeOff />隐藏会话标题
@@ -451,8 +466,14 @@ async function onSend() {
                       <DropdownMenuItem @click="scroll('end')">
                         <ArrowDownToLine />滚动至底部
                       </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      <DropdownMenuSeparator />
+                    </template>
+                    <DropdownMenuItem @click="logout">
+                      <LogOut />退出登录
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <template v-if="messages.length">
                   <ButtonGroup>
                     <Button
                       variant="outline"

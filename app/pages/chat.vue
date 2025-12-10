@@ -127,6 +127,9 @@ function getPlaceholder() {
 watch(
   () => route.query,
   async () => {
+    if (!route.query.conversationId) {
+      showInput.value = true
+    }
     getUserInfo()
     conversationId.value = route.query.conversationId as string
     await Promise.all([getConversationInfo(), getHistory()])

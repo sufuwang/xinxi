@@ -4,7 +4,10 @@ const isDesktop = useMediaQuery('(min-width: 768px)')
 
 const isOpen = ref(false)
 
-const { sidebar, updateAppSettings } = useAppSettings()
+const {
+  // sidebar,
+  updateAppSettings,
+} = useAppSettings()
 
 const direction = useTextDirection()
 
@@ -17,10 +20,10 @@ function handleChangeDirection(dir: 'ltr' | 'rtl') {
 <template>
   <DefineTemplate>
     <div class="space-y-3">
-      <Badge>Layout</Badge>
+      <Badge>布局</Badge>
       <div class="grid gap-6">
-        <div class="space-y-1.5">
-          <Label>Navbar Type</Label>
+        <!-- <div class="space-y-1.5">
+          <Label>导航栏类型</Label>
           <div class="grid grid-cols-3 gap-2">
             <Button
               variant="outline"
@@ -44,23 +47,23 @@ function handleChangeDirection(dir: 'ltr' | 'rtl') {
               Inset
             </Button>
           </div>
-        </div>
+        </div> -->
         <div class="space-y-1.5">
-          <Label>Direction</Label>
+          <Label>方向</Label>
           <div class="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               :class="{ 'border-primary! border-2 bg-primary/10!': direction === 'ltr' }"
               @click="handleChangeDirection('ltr')"
             >
-              LTR
+              Left To Right
             </Button>
             <Button
               variant="outline"
               :class="{ 'border-primary! border-2 bg-primary/10!': direction === 'rtl' }"
               @click="handleChangeDirection('rtl')"
             >
-              RTL
+              Right To Left
             </Button>
           </div>
         </div>
@@ -76,13 +79,13 @@ function handleChangeDirection(dir: 'ltr' | 'rtl') {
     </SheetTrigger>
     <SheetContent :side="direction === 'rtl' ? 'left' : 'right'">
       <SheetHeader class="p-6 pb-0">
-        <SheetTitle>Template Customizer</SheetTitle>
-        <SheetDescription>Customize & Preview in Real Time</SheetDescription>
+        <SheetTitle>系统设置</SheetTitle>
+        <!-- <SheetDescription>Customize & Preview in Real Time</SheetDescription> -->
       </SheetHeader>
       <ScrollArea class="h-[calc(100vh-100px)]">
         <div class="flex flex-col gap-6 px-6">
           <div class="space-y-3">
-            <Badge>Theming</Badge>
+            <Badge>主题</Badge>
             <ThemeCustomize />
           </div>
           <Separator />
@@ -100,12 +103,12 @@ function handleChangeDirection(dir: 'ltr' | 'rtl') {
     </DrawerTrigger>
     <DrawerContent class="max-h-[97%]">
       <DrawerHeader class="text-center sm:text-center">
-        <DrawerTitle>Template Customizer</DrawerTitle>
-        <DrawerDescription>Customize & Preview in Real Time</DrawerDescription>
+        <DrawerTitle>系统设置</DrawerTitle>
+        <!-- <DrawerDescription>Customize & Preview in Real Time</DrawerDescription> -->
       </DrawerHeader>
       <div class="mx-auto max-w-md w-full overflow-auto overflow-y-auto px-4 pb-6 space-y-6">
         <div class="space-y-3">
-          <Badge>Theming</Badge>
+          <Badge>主题</Badge>
           <ThemeCustomize />
         </div>
         <Separator />

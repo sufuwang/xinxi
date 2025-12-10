@@ -40,7 +40,7 @@ const colorMode = useColorMode()
 <template>
   <div class="grid gap-6">
     <div class="space-y-1.5">
-      <Label>Color</Label>
+      <Label>颜色</Label>
       <div class="grid grid-cols-3 gap-2">
         <template v-for="col in allColors" :key="col">
           <Button
@@ -58,7 +58,7 @@ const colorMode = useColorMode()
       </div>
     </div>
     <div class="space-y-1.5">
-      <Label>Type</Label>
+      <Label>风格</Label>
       <div class="grid grid-cols-3 gap-2">
         <template v-for="themeType in allTypes" :key="themeType">
           <Button
@@ -73,7 +73,7 @@ const colorMode = useColorMode()
       </div>
     </div>
     <div class="space-y-1.5">
-      <Label>Theme</Label>
+      <Label>暗黑模式</Label>
       <div class="grid grid-cols-3 gap-2">
         <Button
           class="justify-center gap-2"

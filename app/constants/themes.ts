@@ -35,6 +35,18 @@ export const THEME_COLORS = [
     name: 'teal',
     value: 'oklch(0.60 0.118 184.704)',
   },
+  {
+    name: 'pink',
+    value: 'oklch(0.592 0.249 0.584)',
+  },
+  {
+    name: 'sky',
+    value: 'oklch(0.588 0.158 241.966)',
+  },
+  {
+    name: 'fuchsia',
+    value: 'oklch(0.591 0.293 322.896)',
+  },
 ]
 
 export const THEME_TYPE = ['default', 'scaled', 'mono']

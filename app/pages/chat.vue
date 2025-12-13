@@ -448,8 +448,8 @@ async function onSend(_q?: string) {
                           <Alert v-if="ai.character" class="overflow-y-auto max-h-[30vh]">
                             <AlertTitle class="mb-1 text-primary flex justify-between">
                               性格分析
-                              <Button v-if="!loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCcw />
+                              <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
+                                <RotateCcw :class="{ 'animate-spin': loading.ai }" />
                               </Button>
                             </AlertTitle>
                             <AlertDescription class="gap-0">
@@ -463,8 +463,8 @@ async function onSend(_q?: string) {
                           <Alert v-if="ai.tip" class="overflow-y-auto max-h-[40vh]">
                             <AlertTitle class="mb-1 text-primary flex justify-between">
                               温馨提示
-                              <Button v-if="!loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCcw />
+                              <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
+                                <RotateCcw :class="{ 'animate-spin': loading.ai }" />
                               </Button>
                             </AlertTitle>
                             <AlertDescription class="gap-0">

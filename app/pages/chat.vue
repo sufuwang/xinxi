@@ -57,7 +57,7 @@ interface Message {
   status: 'normal'
 }
 
-const MinMessageCountOfAI = 2
+const MinMessageCountOfAI = 10
 const MarkdownClass = `
   text-[0.9rem]
 

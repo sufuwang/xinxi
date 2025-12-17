@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpToLine, Bot, ChevronsDownUp, ChevronsUpDown, CircleAlert, Eye, EyeOff, LogOut, Mails, Menu, MessageCirclePlus, RotateCcw, Send, Trash2 } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpToLine, Bot, ChevronsDownUp, ChevronsUpDown, CircleAlert, Eye, EyeOff, LogOut, Mails, Menu, MessageCirclePlus, RotateCw, Send, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import {
   Avatar,
@@ -179,11 +179,8 @@ onMounted(async () => {
 
 async function analyze() {
   loading.ai = true
-  query.value = Character
-  await onSend()
-  query.value = Tip
-  await onSend()
-  query.value = ''
+  await onSend(Character)
+  await onSend(Tip)
   loading.ai = false
 }
 function logout() {
@@ -439,7 +436,10 @@ async function onSend(_q?: string) {
                             </EmptyHeader>
                             <EmptyContent>
                               <Button :disabled="loading.ai" @click="analyze">
-                                开始分析
+                                <RotateCw v-if="loading.ai" class="animate-spin" />
+                                <template v-else>
+                                  开始分析
+                                </template>
                               </Button>
                             </EmptyContent>
                           </Empty>
@@ -449,7 +449,7 @@ async function onSend(_q?: string) {
                             <AlertTitle class="mb-1 text-primary flex justify-between">
                               性格分析
                               <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCcw :class="{ 'animate-spin': loading.ai }" />
+                                <RotateCw :class="{ 'animate-spin': loading.ai }" />
                               </Button>
                             </AlertTitle>
                             <AlertDescription class="gap-0">
@@ -464,7 +464,7 @@ async function onSend(_q?: string) {
                             <AlertTitle class="mb-1 text-primary flex justify-between">
                               温馨提示
                               <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCcw :class="{ 'animate-spin': loading.ai }" />
+                                <RotateCw :class="{ 'animate-spin': loading.ai }" />
                               </Button>
                             </AlertTitle>
                             <AlertDescription class="gap-0">

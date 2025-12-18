@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { differenceInSeconds } from 'date-fns'
 import { ConfigProvider } from 'reka-ui'
 import { Toaster } from '@/components/ui/sonner'
 import 'vue-sonner/style.css'
@@ -49,6 +50,15 @@ defineShortcuts({
 
 const textDirection = useTextDirection({ initialValue: 'ltr' })
 const dir = computed(() => textDirection.value === 'rtl' ? 'rtl' : 'ltr')
+
+onMounted(async () => {
+  const user = JSON.parse(localStorage.getItem('user') ?? '{}')
+  const now = Date.now()
+  if (user.username && (!user.dateOfRobotTip || differenceInSeconds(now, user.dateOfRobotTip) >= 30)) {
+    await sendTextByRobot(`${user.username} 进入心栖助手`)
+    localStorage.setItem('user', JSON.stringify({ ...user, dateOfRobotTip: now }))
+  }
+})
 </script>
 
 <template>

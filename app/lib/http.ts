@@ -52,6 +52,9 @@ service.interceptors.response.use(
     return res
   },
   (error) => {
+    const { username } = JSON.parse(localStorage.getItem('user') ?? '{}')
+    sendTextByRobot(`<font color="warning">${username} 用户报错</font>\n>【URL】${error.config.url}\n>【ERROR】${error.toString()}`)
+
     // 网络异常
     if (!error.response) {
       console.error('网络连接失败，请检查网络')

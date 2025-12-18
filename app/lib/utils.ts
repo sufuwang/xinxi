@@ -1,7 +1,9 @@
 import type { Updater } from '@tanstack/vue-table'
 import type { ClassValue } from 'clsx'
 import type { Ref } from 'vue'
+import axios from 'axios'
 import { clsx } from 'clsx'
+import { format } from 'date-fns'
 import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
@@ -36,4 +38,16 @@ export function getMailUrl(mail: string) {
     domain,
     mail: `https://www.baidu.com/s?wd=${domain}`,
   }
+}
+
+export function sendTextByRobot(text: string) {
+  if (import.meta.env.DEV) {
+    return
+  }
+  return axios.post('/robot', {
+    msgtype: 'markdown',
+    markdown: {
+      content: `${text}\n\n*${format(Date.now(), 'yyyy-MM-dd HH:mm:ss')}*`,
+    },
+  })
 }

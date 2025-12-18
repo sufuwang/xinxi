@@ -85,6 +85,9 @@ export default defineNuxtConfig({
       // proxy: 'http://localhost:3000/**',
       proxy: 'https://x.sufu.site/**',
     },
+    '/robot': {
+      proxy: `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${process.env.WECHAT_ROBOT_KEY}`,
+    },
   },
 
   imports: {

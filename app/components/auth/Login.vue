@@ -164,6 +164,7 @@ async function register() {
         status.value = data.status
         return Promise.reject(data)
       }
+      sendTextByRobot(`新用户注册：${form.nickname} (${form.email})`)
       localStorage.setItem('user', JSON.stringify({ username: data.username.slice(0, -9), dify_user: data.username }))
       close()
     }
@@ -175,6 +176,7 @@ async function register() {
 async function login() {
   const { data } = await http.post('/x/user/login', { email: form.email, password: form.password })
   status.value = data.status
+  sendTextByRobot(`用户登录：${data.username} (${form.email})`)
   localStorage.setItem('user', JSON.stringify({ username: data.username.slice(0, -9), dify_user: data.username }))
 }
 async function onReset() {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
-import { ArrowDownToLine, ArrowUpToLine, Bot, ChevronsDownUp, ChevronsUpDown, CircleAlert, Eye, EyeOff, LogOut, Mails, Menu, MessageCirclePlus, RotateCw, Send, Trash2 } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpToLine, ChevronsDownUp, ChevronsUpDown, Eye, EyeOff, LogOut, Mails, Menu, MessageCirclePlus, MessageCircleQuestion, Send, Trash2 } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import {
   Avatar,
@@ -34,7 +34,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
 import http from '@/lib/http'
-import { Character, Tip } from '@/lib/prompt'
+import { Prompts } from '@/lib/prompt'
 
 definePageMeta({
   layout: false,
@@ -57,7 +57,6 @@ interface Message {
   status: 'normal'
 }
 
-const MinMessageCountOfAI = 10
 const MarkdownClass = `
   text-[0.9rem]
 
@@ -116,8 +115,7 @@ const allConversation = ref<Conversation[]>()
 const curConversation = ref<Conversation | null>()
 const messages = ref<Message[]>([])
 
-const loading = reactive<{ ai: boolean, chat: boolean }>({ chat: false, ai: false })
-const ai = reactive<{ character: Message | null, tip: Message | null }>({ character: null, tip: null })
+const loading = reactive<{ chat: boolean }>({ chat: false })
 
 const router = useRouter()
 const route = useRoute()
@@ -157,10 +155,6 @@ watch(openLoginDialog, async () => {
     })
   }
 })
-watch(messages, async () => {
-  ai.character = messages.value.findLast(row => row.query === Character) as Message
-  ai.tip = messages.value.findLast(row => row.query === Tip) as Message
-}, { deep: true })
 
 onBeforeMount(() => {
   getUserInfo()
@@ -177,12 +171,6 @@ onMounted(async () => {
   }, 500)
 })
 
-async function analyze() {
-  loading.ai = true
-  await onSend(Character)
-  await onSend(Tip)
-  loading.ai = false
-}
 function logout() {
   localStorage.removeItem('user')
   router.replace({
@@ -242,7 +230,7 @@ async function getHistory() {
       headers: { Authorization: `Bearer ${DIFY_API_KEY}` },
     },
   )
-  messages.value = data.filter(row => row.query && row.answer)
+  messages.value = data.filter(row => !row.query.startsWith('【PROMPT】') && row.query && row.answer)
   loading.chat = false
 }
 async function deleteConversation() {
@@ -258,6 +246,10 @@ async function deleteConversation() {
   router.replace({ path: '/chat' })
 }
 async function onSend(_q?: string) {
+  if (loading.chat) {
+    warning('当前问题正在处理，请稍后再试')
+    return
+  }
   if (!dify_user.value) {
     openLoginDialog.value = true
     return
@@ -387,7 +379,13 @@ async function onSend(_q?: string) {
             </Empty>
           </div>
         </CardContent>
-        <CardFooter class="flex flex-col px-0">
+        <CardFooter class="flex flex-col px-0 gap-1 lg:gap-2">
+          <div class="w-full flex gap-1 lg:gap-2 justify-items-start overflow-x-auto">
+            <Button v-for="row in Prompts" :key="row.label" variant="outline" size="sm" class="font-normal gap-1" @click="onSend(row.question)">
+              <MessageCircleQuestion />
+              {{ row.label }}
+            </Button>
+          </div>
           <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
           <InputGroup>
             <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" @keydown.enter.prevent="onSend" />
@@ -403,87 +401,6 @@ async function onSend(_q?: string) {
               </div>
               <div class="flex flex-row gap-2">
                 <template v-if="allConversation?.length">
-                  <Drawer>
-                    <DrawerTrigger as-child>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                      >
-                        <Bot />
-                      </Button>
-                    </DrawerTrigger>
-                    <DrawerContent>
-                      <div class="grid gap-2 p-4">
-                        <Alert v-if="messages.length < MinMessageCountOfAI">
-                          <CircleAlert />
-                          <AlertTitle>有效聊天不足</AlertTitle>
-                          <AlertDescription>
-                            您的聊天记录不足以生成性格分析等信息<br>
-                            有效提问 {{ MinMessageCountOfAI }} 次以上，AI 会为您生成<br>
-                            当前提问次数为 {{ messages.length }} 次
-                          </AlertDescription>
-                        </Alert>
-                        <template v-else-if="!ai.character && !ai.tip">
-                          <Empty>
-                            <EmptyHeader>
-                              <EmptyMedia variant="icon">
-                                <Bot />
-                              </EmptyMedia>
-                              <EmptyTitle>心栖 AI 分析</EmptyTitle>
-                              <EmptyDescription>
-                                基于当前对话，分析您的性格特点，并为您提出合理的建议
-                              </EmptyDescription>
-                            </EmptyHeader>
-                            <EmptyContent>
-                              <Button :disabled="loading.ai" @click="analyze">
-                                <RotateCw v-if="loading.ai" class="animate-spin" />
-                                <template v-else>
-                                  开始分析
-                                </template>
-                              </Button>
-                            </EmptyContent>
-                          </Empty>
-                        </template>
-                        <template v-else>
-                          <Alert v-if="ai.character" class="overflow-y-auto max-h-[30vh]">
-                            <AlertTitle class="mb-1 text-primary flex justify-between">
-                              性格分析
-                              <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCw :class="{ 'animate-spin': loading.ai }" />
-                              </Button>
-                            </AlertTitle>
-                            <AlertDescription class="gap-0">
-                              <MDC :value="ai.character.answer" :class="MarkdownClass" />
-                              <span class="text-foreground/75 mt-1 block text-xs font-light italic">
-                                {{ format(ai.character.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
-                              </span>
-                              <!-- <p><strong>需警惕</strong>：</p><ol><li>勿让“帮助他人”成为逃避自我需求的借口</li><li>当连续出现胃部紧绷/肩颈酸痛时，提示情绪承载超限</li><li>避免用“成长”名义强迫自己立刻改变</li></ol><p><strong>可强化</strong>：</p><ol><li>每天留15分钟“无共情时间”（如拼图/编程）</li><li>遇到他人情绪波动时，先问自己：“这是谁的主场？”</li><li>把“绿色圆形”实体化（如口袋里的圆形鹅卵石）</li></ol><p><strong>关键提醒</strong>：你最大的优势（高共情）与最大挑战（边界模糊）实为一体两面，需练习像潮汐般——既能涌向世界，也能退回自己的海岸。</p> -->
-                            </AlertDescription>
-                          </Alert>
-                          <Alert v-if="ai.tip" class="overflow-y-auto max-h-[40vh]">
-                            <AlertTitle class="mb-1 text-primary flex justify-between">
-                              温馨提示
-                              <Button :disabled="loading.ai" class="h-fit" variant="ghost" size="icon-sm" @click="analyze">
-                                <RotateCw :class="{ 'animate-spin': loading.ai }" />
-                              </Button>
-                            </AlertTitle>
-                            <AlertDescription class="gap-0">
-                              <MDC :value="ai.tip.answer" :class="MarkdownClass" />
-                              <span class="text-foreground/75 mt-1 block text-xs font-light italic">
-                                {{ format(ai.tip.created_at * 1000, 'yyyy-MM-dd HH:mm:ss') }}
-                              </span>
-                              <!-- <p>
-                                你具有<strong>高敏感与强共情力</strong>，能敏锐感知他人情绪变化，但易因此过度负荷。内心存在<strong>成长型思维</strong>，习惯用意象化方式（如“绿色圆形”）处理情绪，展现出独特的心理调节天赋。你正从被动承受转向主动建构，在“照顾他人”与“守护自我”间寻找平衡。性格核心矛盾在于：<strong>细腻的觉察力既是滋养关系的礼物，也是消耗能量的缺口</strong>。你追求的韧性并非坚硬对抗，而是学会在柔软中建立弹性边界。
-                              </p> -->
-                            </AlertDescription>
-                          </Alert>
-                          <div class="text-xs text-center text-gray-600">
-                            以上 AI 分析根据当前会话生成，仅供参考
-                          </div>
-                        </template>
-                      </div>
-                    </DrawerContent>
-                  </Drawer>
                   <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                       <Button
@@ -583,13 +500,13 @@ async function onSend(_q?: string) {
                   </ButtonGroup>
                 </template>
                 <InputGroupButton
-                  v-if="showInput"
+                  v-if="showInput || loading.chat"
                   variant="default"
                   size="icon-sm"
-                  :disabled="loading.chat || loading.ai"
+                  :disabled="loading.chat"
                   @click="onSend"
                 >
-                  <Spinner v-if="loading.chat || loading.ai" />
+                  <Spinner v-if="loading.chat" />
                   <template v-else>
                     <Send class="size-4" />
                     <span class="sr-only">Send</span>

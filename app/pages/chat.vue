@@ -33,6 +33,11 @@ import {
 } from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip'
 import http from '@/lib/http'
 import { Prompts } from '@/lib/prompt'
 
@@ -109,6 +114,7 @@ const query = ref('')
 const placeholder = ref(getPlaceholder())
 const showTitle = ref(true)
 const showInput = ref(true)
+const tipCardFooter = ref('')
 const messagesRef = useTemplateRef('messagesRef')
 const conversationId = ref('')
 const allConversation = ref<Conversation[]>()
@@ -116,6 +122,8 @@ const curConversation = ref<Conversation | null>()
 const messages = ref<Message[]>([])
 
 const loading = reactive<{ chat: boolean }>({ chat: false })
+
+const showTipCardFooter = computed(() => tipCardFooter.value.length > 0)
 
 const router = useRouter()
 const route = useRoute()
@@ -126,6 +134,14 @@ function getPlaceholder() {
   return placeholders[index] ?? placeholders.at(-1)
 }
 
+watch(showTipCardFooter, (val) => {
+  if (val) {
+    const id = setTimeout(() => {
+      tipCardFooter.value = ''
+      clearTimeout(id)
+    }, 4000)
+  }
+})
 watch(
   () => route.query,
   async () => {
@@ -301,7 +317,6 @@ async function onSend(_q?: string) {
           ...history.slice(0, -1),
           { ...history.at(-1), ...rows[0]!, answer: history.at(-1)?.answer + rows.map(r => r.answer).join('') },
         ]
-        scroll('end')
       }
       else {
         messages.value = [...history, { ...rows[0]!, answer: rows.map(r => r.answer).join(''), query: q }]
@@ -310,6 +325,7 @@ async function onSend(_q?: string) {
           conversationId.value = rows[0]?.conversation_id ?? ''
           getConversationInfo()
         }
+        tipCardFooter.value = '有新消息'
       }
     }
     catch (error) {
@@ -379,162 +395,151 @@ async function onSend(_q?: string) {
             </Empty>
           </div>
         </CardContent>
-        <CardFooter class="flex flex-col px-0 gap-1 lg:gap-2">
-          <div class="w-full flex gap-1 lg:gap-2 justify-items-start overflow-x-auto">
-            <Button v-for="row in Prompts" :key="row.label" variant="outline" size="sm" class="font-normal gap-1" @click="onSend(row.question)">
-              <MessageCircleQuestion />
-              {{ row.label }}
-            </Button>
-          </div>
-          <!-- <div class="text-xs text-[var(--card-foreground)]/60 mb-1">这是一个有温度的 AI ，内容还需自行甄别</div> -->
-          <InputGroup>
-            <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" @keydown.enter.prevent="onSend" />
-            <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
-              <div class="flex gap-2 items-center">
-                <Avatar v-if="avatarUrl">
-                  <AvatarImage :src="avatarUrl" alt="avatar" />
-                  <AvatarFallback>SU</AvatarFallback>
-                </Avatar>
-                <div>
-                  {{ username }}
-                </div>
+        <TooltipProvider>
+          <Tooltip v-model:open="showTipCardFooter">
+            <TooltipTrigger as-child />
+            <CardFooter class="flex flex-col px-0 gap-1 lg:gap-2">
+              <div class="w-full flex gap-1 lg:gap-2 justify-items-start overflow-x-auto">
+                <Button v-for="row in Prompts" :key="row.label" variant="outline" size="sm" class="font-normal gap-1" @click="onSend(row.question)">
+                  <MessageCircleQuestion />
+                  {{ row.label }}
+                </Button>
               </div>
-              <div class="flex flex-row gap-2">
-                <template v-if="allConversation?.length">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                      >
-                        <Mails />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuLabel>所有会话</DropdownMenuLabel>
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          v-for="row in allConversation"
-                          :key="row.id"
-                          @click="router.push({ path: '/chat', query: { conversationId: row.id } })"
-                        >
-                          <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
-                          {{ row.name }}
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem @click="router.push({ path: '/chat' })">
-                        <MessageCirclePlus />新建会话
-                      </DropdownMenuItem>
-                      <DropdownMenuItem v-if="conversationId" @click="deleteConversation">
-                        <Trash2 />删除会话
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </template>
-                <DropdownMenu v-if="dify_user">
-                  <DropdownMenuTrigger as-child>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                    >
-                      <Menu />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <template v-if="messages.length">
-                      <DropdownMenuItem @click="showTitle = !showTitle">
-                        <template v-if="showTitle">
-                          <EyeOff />隐藏会话标题
-                        </template>
-                        <template v-else>
-                          <Eye />显示会话标题
-                        </template>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem @click="showInput = !showInput">
-                        <template v-if="showInput">
-                          <ChevronsDownUp />隐藏输入框
-                        </template>
-                        <template v-else>
-                          <ChevronsUpDown />显示输入框
-                        </template>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem @click="scroll('start')">
-                        <ArrowUpToLine />滚动至顶端
-                      </DropdownMenuItem>
-                      <DropdownMenuItem @click="scroll('end')">
-                        <ArrowDownToLine />滚动至底部
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+              <InputGroup>
+                <InputGroupTextarea v-show="showInput" v-model="query" :placeholder="placeholder" @keydown.enter.prevent="onSend" />
+                <InputGroupAddon align="block-end" class="justify-between" :class="{ 'p-2': !showInput }">
+                  <div class="flex gap-2 items-center">
+                    <Avatar v-if="avatarUrl">
+                      <AvatarImage :src="avatarUrl" alt="avatar" />
+                      <AvatarFallback>SU</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      {{ username }}
+                    </div>
+                  </div>
+                  <div class="flex flex-row gap-2">
+                    <template v-if="allConversation?.length">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button
+                            variant="outline"
+                            size="icon-sm"
+                          >
+                            <Mails />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>所有会话</DropdownMenuLabel>
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              v-for="row in allConversation"
+                              :key="row.id"
+                              @click="router.push({ path: '/chat', query: { conversationId: row.id } })"
+                            >
+                              <div v-if="row.id === curConversation?.id" class="w-2 h-2 mx-1 rounded-full bg-primary animate-pulse" />
+                              {{ row.name }}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem @click="router.push({ path: '/chat' })">
+                            <MessageCirclePlus />新建会话
+                          </DropdownMenuItem>
+                          <DropdownMenuItem v-if="conversationId" @click="deleteConversation">
+                            <Trash2 />删除会话
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </template>
-                    <DropdownMenuItem @click="logout">
-                      <LogOut />退出登录
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <template v-if="messages.length">
-                  <ButtonGroup>
-                    <Button
-                      variant="outline"
+                    <DropdownMenu v-if="dify_user">
+                      <DropdownMenuTrigger as-child>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                        >
+                          <Menu />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <template v-if="messages.length">
+                          <DropdownMenuItem @click="showTitle = !showTitle">
+                            <template v-if="showTitle">
+                              <EyeOff />隐藏会话标题
+                            </template>
+                            <template v-else>
+                              <Eye />显示会话标题
+                            </template>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="showInput = !showInput">
+                            <template v-if="showInput">
+                              <ChevronsDownUp />隐藏输入框
+                            </template>
+                            <template v-else>
+                              <ChevronsUpDown />显示输入框
+                            </template>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem @click="scroll('start')">
+                            <ArrowUpToLine />滚动至顶端
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="scroll('end')">
+                            <ArrowDownToLine />滚动至底部
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </template>
+                        <DropdownMenuItem @click="logout">
+                          <LogOut />退出登录
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <template v-if="messages.length">
+                      <ButtonGroup>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          @click="scroll('start')"
+                        >
+                          <ArrowUpToLine />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          @click="showInput = !showInput"
+                        >
+                          <ChevronsDownUp v-if="showInput" />
+                          <ChevronsUpDown v-else />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          @click="scroll('end')"
+                        >
+                          <ArrowDownToLine />
+                        </Button>
+                      </ButtonGroup>
+                    </template>
+                    <InputGroupButton
+                      v-if="showInput || loading.chat"
+                      variant="default"
                       size="icon-sm"
-                      @click="scroll('start')"
+                      :disabled="loading.chat"
+                      @click="onSend"
                     >
-                      <ArrowUpToLine />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      @click="showInput = !showInput"
-                    >
-                      <ChevronsDownUp v-if="showInput" />
-                      <ChevronsUpDown v-else />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      @click="scroll('end')"
-                    >
-                      <ArrowDownToLine />
-                    </Button>
-                  </ButtonGroup>
-                </template>
-                <InputGroupButton
-                  v-if="showInput || loading.chat"
-                  variant="default"
-                  size="icon-sm"
-                  :disabled="loading.chat"
-                  @click="onSend"
-                >
-                  <Spinner v-if="loading.chat" />
-                  <template v-else>
-                    <Send class="size-4" />
-                    <span class="sr-only">Send</span>
-                  </template>
-                </InputGroupButton>
-              </div>
-            </InputGroupAddon>
-          </InputGroup>
-        </CardFooter>
+                      <Spinner v-if="loading.chat" />
+                      <template v-else>
+                        <Send class="size-4" />
+                        <span class="sr-only">Send</span>
+                      </template>
+                    </InputGroupButton>
+                  </div>
+                </InputGroupAddon>
+              </InputGroup>
+            </CardFooter>
+            <TooltipContent>
+              {{ tipCardFooter }}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </Card>
-      <!-- <div class="w-[36%] flex flex-col gap-2">
-        <Card class="w-full h-fit flex p-2 gap-2">
-          <CardHeader class="p-2">
-            <CardTitle>Login to your account</CardTitle>
-          </CardHeader>
-          <CardContent class="flex-1 px-1 overflow-y-auto">
-            <div>性格分析 / 注意事项</div>
-          </CardContent>
-        </Card>
-        <Card class="w-full h-fit flex p-2 gap-2">
-          <CardHeader class="p-2">
-            <CardTitle>Login to your account</CardTitle>
-          </CardHeader>
-          <CardContent class="flex-1 px-1 overflow-y-auto">
-            <div>广告</div>
-          </CardContent>
-        </Card>
-      </div> -->
     </div>
   </div>
 </template>
